@@ -1,0 +1,10 @@
+nc spyridon.ifi.uzh.ch 26049
+
+
+ Your username is: dhug
+Your password is: 23f3148b12c0
+
+Flag 1: 
+
+uzh{3dc86e192a723a88}
+
