@@ -1,5 +1,7 @@
 import re
 import pwn
+import sys
+sys.path.append("..")
 from utils import login, print_buf
 import os
 from time import sleep

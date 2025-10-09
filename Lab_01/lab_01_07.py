@@ -3,6 +3,8 @@ from Crypto.Cipher import DES
 import random
 import pwn
 from time import sleep
+import sys
+sys.path.append("..")
 from utils import login, print_buf
 import numpy as np
 
