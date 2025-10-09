@@ -1,33 +1,66 @@
-# from pwn import remote, context
+import re
 import pwn
+from utils import login, print_buf
+import os
 from time import sleep
 
-connection = pwn.remote("spyridon.ifi.uzh.ch", 26050)
+con, buf = login(8)
 
-connection.recvuntil(b"Enter your username: ", timeout=60)
+def recv_cipher_hex():
+    """Read a line and extract the longest hex substring"""
+    line = con.recvline(timeout=1)
+    if not line:
+        print("inproper return of oracle")
+        return ""
+    s = line.decode(errors='replace').strip()
+    
+    # find longest hex substring of even length (common ciphertext lengths are >= 32 chars)
+    matches = re.findall(r'[0-9a-fA-F]+', s)
+    if not matches:
+        return ""
+    # choose the longest match (most likely the ciphertext)
+    hex_candidate = max(matches, key=len)
+    # ensure even length (hex must be even number of chars)
+    if len(hex_candidate) % 2 == 1:
+        hex_candidate = hex_candidate[:-1]
+    return hex_candidate.lower()
 
-# send our username followed by a newline (like `echo user | nc ...`)
+prefix = b'\x00' * 14
+zeros14 = b'\x00' * 14
 
-connection.sendline(b"dhug")
+# 1) get target block C0
+con.sendline(prefix.hex().encode())               # send empty input (newline)
+resp_hex = recv_cipher_hex()
+C0 = bytes.fromhex(resp_hex)[0:16]
+print(f"Answer for empty block C0: {C0.hex()}, Len: {len(C0)}")
 
-connection.recvuntil(b"Select a question to solve (1-8) or 9 to exit:\n", timeout=60)
+secret = None
 
-connection.sendline("8") 
+# 2) brute-force all 2-byte secrets
+for x in range(2**16):
 
-buf = connection.recvrepeat(timeout=1)
+    s = x.to_bytes(2, 'big')
+    payload = prefix + s + zeros14
+    con.sendline(payload.hex().encode())
+    resp_hex = recv_cipher_hex()
 
-print(buf)
+    cipher_bytes = bytes.fromhex(resp_hex)
 
-sleep(1) 
+    if x % 1000 == 0:  
+        print(f"Tried: {x}/{2**16}")
+        print(f"Len Responce: {len(cipher_bytes)}, \nC0: {cipher_bytes[0:16].hex()}, \nC1: {cipher_bytes[16:32].hex()}")
 
-connection.sendline("aa") 
-
-buf = connection.recvrepeat()
-
-print(f"\n {buf} \n")
-
-
-
-
+    block1 = cipher_bytes[16:32]
+    if block1 == C0:
+        print("Found secret candidate:", x, hex(x))
+        secret =  f"{x:04x}" 
+        break
+else:
+    print("No candidate matched.")
 
 
+if secret:
+    con.sendline(b"c")
+    sleep(0.5)
+    con.sendline(secret.encode())
+    print_buf(con)
