@@ -6,7 +6,7 @@ import re, sys
 context.log_level = "debug"
 
 # target host/port (update if needed)
-HOST, PORT = "spyridon.ifi.uzh.ch", 26049
+HOST, PORT = "spyridon.ifi.uzh.ch", 26051
 
 # regex to match flag pattern like: uzh{...}
 FLAG_RE = re.compile(rb"uzh\{[^}]+\}")
